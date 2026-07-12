@@ -1,7 +1,7 @@
 """AI provider abstraction (spec Section 7).
 
 Three capabilities: vision(image, prompt) -> str, complete(prompt) -> str,
-embed(text) -> list[float]. Implementations: ollama (default), openai.
+embed(text) -> list[float]. Implementations: ollama (default), openai, nim.
 All model names come from config, never hard-coded.
 """
 import json
@@ -84,6 +84,10 @@ def get_provider() -> AIProvider:
             from .openai import OpenAIProvider
 
             _provider = OpenAIProvider()
+        elif settings.ai_provider == "nim" and settings.nim_api_key:
+            from .nim import NIMProvider
+
+            _provider = NIMProvider()
         else:
             from .ollama import OllamaProvider
 

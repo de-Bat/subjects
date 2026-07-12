@@ -50,6 +50,7 @@ async def read_settings() -> SettingsOut:
             "github_token": bool(s.github_token),
             "tmdb_api_key": bool(s.tmdb_api_key),
             "openai_api_key": bool(s.openai_api_key),
+            "nim_api_key": bool(s.nim_api_key),
         },
         editable_keys=sorted(runtime_settings.ALLOWED_KEYS),
     )

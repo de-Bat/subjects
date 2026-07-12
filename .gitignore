@@ -1,8 +1,8 @@
 # env
-.env
+#f.env
 .env.local
-*.env
-!.env.example
+#*.env
+#!.env.example
 
 # node
 node_modules/

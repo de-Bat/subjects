@@ -17,16 +17,17 @@ For a first run use [GETTING_STARTED.md](GETTING_STARTED.md).
   │  meilisearch  v1.9        (volume meilidata)                │
   │  (appdata volume mounted in api + worker → /data media)     │
   └──────────────────────────────────────────────────────────┘
-                         │ OLLAMA_BASE_URL
+                         │ AI_PROVIDER (ollama | openai | nim)
                          ▼
-            Ollama  :11434   (EXTERNAL — you run this)
+   Ollama :11434 (local, EXTERNAL — you run this)  ── or OpenAI ── or NVIDIA NIM
 ```
 
 - **web** and **worker** both build from `./api` (worker just runs a different
   command). `web` builds from `./web` (node build → nginx).
 - **Ollama is not in compose** — run it on the host or another box. The API/worker
   reach it via `OLLAMA_BASE_URL` (default `http://host.docker.internal:11434`;
-  compose wires `host.docker.internal` for Linux via `extra_hosts`).
+  compose wires `host.docker.internal` for Linux via `extra_hosts`). Same applies
+  to a self-hosted NIM microservice — point `NIM_BASE_URL` at it.
 
 ### Ports
 
@@ -47,7 +48,7 @@ For a first run use [GETTING_STARTED.md](GETTING_STARTED.md).
 | `DATABASE_URL` | `postgresql+asyncpg://…` | Async SQLAlchemy DSN (app). |
 | `DATABASE_DSN` | `postgresql://…` | Plain psycopg DSN (procrastinate + LISTEN/NOTIFY). |
 | `POSTGRES_USER/PASSWORD/DB` | `subjects` | Postgres credentials. |
-| `AI_PROVIDER` | `ollama` | `ollama` or `openai`. |
+| `AI_PROVIDER` | `ollama` | `ollama` (local), `openai`, or `nim`. |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | External Ollama. |
 | `VISION_MODEL` | `qwen2.5vl:7b` | VLM for image/OCR path. |
 | `TEXT_MODEL` | `qwen2.5vl:7b` | Text LLM (classify/disambiguate/categorize). |
@@ -55,6 +56,8 @@ For a first run use [GETTING_STARTED.md](GETTING_STARTED.md).
 | `EMBED_DIM` | `768` | Embedding vector dimension (must match model). |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | — | Used when `AI_PROVIDER=openai`. |
 | `OPENAI_VISION/TEXT/EMBED_MODEL` | `gpt-4o-mini` / `…-3-small` | OpenAI model slots. |
+| `NIM_API_KEY` / `NIM_BASE_URL` | — | Used when `AI_PROVIDER=nim`. Self-hosted microservice or `build.nvidia.com`. |
+| `NIM_VISION/TEXT/EMBED_MODEL` | `meta/llama-3.2-90b-vision-instruct` / `meta/llama-3.1-70b-instruct` / `nvidia/nv-embedqa-e5-v5` | NIM model slots. |
 | `GITHUB_TOKEN` | — | Higher GitHub API rate limit (optional). |
 | `TMDB_API_KEY` | — | Enables the movie resolver. |
 | `CONFIDENCE_AUTO` | `0.8` | Auto-file threshold; below → `needs_review`. |
@@ -93,6 +96,19 @@ OPENAI_BASE_URL=https://api.openai.com/v1   # or any compatible gateway
 ```
 
 Data leaves your network in this mode — choose deliberately.
+
+### NVIDIA NIM
+
+```ini
+AI_PROVIDER=nim
+NIM_API_KEY=nvapi-...
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1   # build.nvidia.com catalog
+```
+
+Or self-host the NIM container (GPU box) and point `NIM_BASE_URL` at it
+(`http://<that-host>:8000/v1`) — stays private, same as Ollama. No `response_format`
+is forced on chat calls since JSON-mode support varies by NIM model; the app
+parses replies defensively either way.
 
 ---
 
@@ -189,7 +205,7 @@ and hit **Reprocess** — or re-capture.
 
 | Symptom | Cause → Fix |
 |---------|-------------|
-| Items stuck `pending` | Worker can't reach Ollama, or no worker running. `docker compose logs worker`; verify `OLLAMA_BASE_URL` + `ollama serve`. |
+| Items stuck `pending` | Worker can't reach the AI provider, or no worker running. `docker compose logs worker`; verify `OLLAMA_BASE_URL`/`ollama serve` (or `NIM_BASE_URL`/`NIM_API_KEY` for nim). |
 | `401 Unauthorized` on capture | Client token ≠ `APP_TOKEN`. Re-enter in Settings / extension Options / Shortcut header. |
 | Live updates never arrive | SSE blocked by a proxy buffering `/api/events`. The bundled nginx disables buffering; a custom proxy must too (`proxy_buffering off`). |
 | Everything → `needs_review` | Model too weak or input ambiguous. Lower `confidence_auto`, or use a stronger model. |

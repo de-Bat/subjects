@@ -9,15 +9,17 @@ see the [USER_MANUAL.md](USER_MANUAL.md).
 ## What you're setting up
 
 Five containers via Docker Compose — `web`, `api`, `worker`, `postgres`,
-`meilisearch` — plus **one external Ollama** (the LLM/VLM provider) that you run
-yourself, outside compose, ideally on a machine with a GPU.
+`meilisearch` — plus an LLM/VLM provider: **Ollama** (default, local, run
+yourself outside compose, ideally on a machine with a GPU), or a hosted/self-hosted
+alternative — **OpenAI-compatible** or **NVIDIA NIM**.
 
 ```
 Browser / phone ──▶ web (nginx :8080) ──/api──▶ api (FastAPI :8000) ──▶ postgres (pgvector)
                                                     │                        ▲
                                                     ├── enqueue job ─────────┘
                                                     ▼
-                                              worker (pipeline) ──▶ ollama (external :11434)
+                                              worker (pipeline) ──▶ ollama (local :11434)
+                                                                └──▶ openai / nim (hosted)
                                                                 └──▶ meilisearch (search)
 ```
 
@@ -28,7 +30,7 @@ Browser / phone ──▶ web (nginx :8080) ──/api──▶ api (FastAPI :80
 | Need | Why |
 |------|-----|
 | Docker + Docker Compose v2 | Runs the whole stack. |
-| An LLM provider | **Ollama** (default, self-hosted) **or** an OpenAI-compatible key. |
+| An LLM provider | **Ollama** (default, local) **or** an OpenAI-compatible key **or** an NVIDIA NIM key. |
 | ~8 GB free RAM / a GPU (recommended) | The 7B vision model is the heavy part. |
 
 ### Install Ollama + models (default path)
@@ -43,7 +45,8 @@ ollama serve                    # listens on :11434
 ```
 
 Prefer OpenAI instead? Skip Ollama and set `AI_PROVIDER=openai` + `OPENAI_API_KEY`
-in `.env` (below).
+in `.env` (below). Prefer NVIDIA NIM? Set `AI_PROVIDER=nim` + `NIM_API_KEY` (and
+`NIM_BASE_URL` if self-hosting the microservice instead of `build.nvidia.com`).
 
 ---
 
@@ -123,7 +126,7 @@ generic + typed resolvers in action.
 
 | Symptom | Fix |
 |---------|-----|
-| Items stay `pending` forever | The `worker` can't reach Ollama. Check `OLLAMA_BASE_URL` and that `ollama serve` is up. `docker compose logs worker`. |
+| Items stay `pending` forever | The `worker` can't reach the AI provider. Check `OLLAMA_BASE_URL` + `ollama serve` (or `NIM_BASE_URL`/`NIM_API_KEY` for nim). `docker compose logs worker`. |
 | `401` on capture | Token in **Settings** ≠ `APP_TOKEN` in `.env`. |
 | Everything lands in **Review** | Confidence below `CONFIDENCE_AUTO` (0.8). Model too small / prompts need tuning, or genuinely ambiguous input. |
 | Search returns nothing | Meilisearch still indexing, or down — it falls back to SQL `ILIKE`. Check `docker compose logs meilisearch`. |

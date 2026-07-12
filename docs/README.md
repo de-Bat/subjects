@@ -34,7 +34,8 @@ api/         FastAPI + Uvicorn (async SQLAlchemy / asyncpg, Pydantic v2).
 worker       procrastinate worker draining the Postgres job queue (no Redis).
 postgres     Postgres 16 + pgvector (items, taxonomy, embeddings, job queue).
 meilisearch  Full-text index (Phase 4).
-ollama       External LLM/VLM provider (default): Qwen2.5-VL 7B vision + nomic-embed-text.
+ollama       External LLM/VLM provider (default, local): Qwen2.5-VL 7B vision + nomic-embed-text.
+             Swap in openai or nim (NVIDIA NIM) via AI_PROVIDER — see Configuration below.
 ```
 
 Ingestion channels (all thin clients of `POST /api/ingest`):
@@ -47,16 +48,19 @@ Ingestion channels (all thin clients of `POST /api/ingest`):
 
 - Docker + Docker Compose.
 - An LLM provider. Default is a **separate Ollama** instance reachable from the
-  API container (`OLLAMA_BASE_URL`). Alternatively set `AI_PROVIDER=openai` with
-  an API key. Ollama is intentionally **not** in the compose file — run it on the
-  host or another box where the model weights and (ideally) a GPU live.
+  API container (`OLLAMA_BASE_URL`) — fully local. Alternatively set
+  `AI_PROVIDER=openai` with an API key, or `AI_PROVIDER=nim` with a
+  `NIM_API_KEY` to use NVIDIA NIM (self-hosted microservice or
+  `build.nvidia.com`). Ollama is intentionally **not** in the compose file — run
+  it on the host or another box where the model weights and (ideally) a GPU live.
 
 ## Setup
 
 ```bash
 cp .env.example .env
-# edit .env: set APP_TOKEN, OLLAMA_BASE_URL (or AI_PROVIDER=openai + OPENAI_API_KEY),
-# optional TMDB_API_KEY / GITHUB_TOKEN for the flagship resolvers.
+# edit .env: set APP_TOKEN, OLLAMA_BASE_URL (or AI_PROVIDER=openai + OPENAI_API_KEY,
+# or AI_PROVIDER=nim + NIM_API_KEY), optional TMDB_API_KEY / GITHUB_TOKEN for the
+# flagship resolvers.
 
 docker compose up --build
 ```
@@ -158,9 +162,10 @@ See [`.env.example`](../.env.example) for every variable. Key ones:
 | Var | Meaning |
 |-----|---------|
 | `APP_TOKEN` | Bearer token every write channel must send. |
-| `AI_PROVIDER` | `ollama` (default) or `openai`. |
+| `AI_PROVIDER` | `ollama` (default, local), `openai`, or `nim`. |
 | `OLLAMA_BASE_URL` | URL of your external Ollama. |
 | `OPENAI_API_KEY` | Required when `AI_PROVIDER=openai`. |
+| `NIM_API_KEY` / `NIM_BASE_URL` | Required when `AI_PROVIDER=nim` — NVIDIA NIM, self-hosted or `build.nvidia.com`. |
 | `CONFIDENCE_AUTO` | Auto-accept threshold (default `0.8`); below → `needs_review`. |
 | `TMDB_API_KEY` | Enables the movie resolver. |
 | `GITHUB_TOKEN` | Higher rate limit for the github resolver (optional). |

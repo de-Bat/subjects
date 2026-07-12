@@ -84,7 +84,7 @@ capture-app/
 │  │  │  ├─ movie.py
 │  │  │  └─ generic.py       # fallback
 │  │  ├─ ai/
-│  │  │  ├─ provider.py      # abstract; ollama.py, openai.py impls
+│  │  │  ├─ provider.py      # abstract; ollama.py, openai.py, nim.py impls
 │  │  │  ├─ vision.py        # image → {service, ocr_text, entities} JSON
 │  │  │  └─ embeddings.py
 │  │  └─ jobs.py             # procrastinate tasks
@@ -232,7 +232,7 @@ Async, staged, driven off the job queue. Each stage updates the item and emits a
 
 ## 7. AI provider abstraction
 
-`ai/provider.py` defines an interface with three capabilities: `vision(image, prompt) -> str`, `complete(prompt) -> str`, `embed(text) -> list[float]`. Two implementations: `ollama.py` (default, base URL from config) and `openai.py` (used if `AI_PROVIDER=openai` and a key is set). All model names come from config, never hard-coded. Vision and categorize prompts must instruct the model to return **only** valid JSON; parse defensively (strip code fences, validate against a Pydantic schema, retry once on parse failure).
+`ai/provider.py` defines an interface with three capabilities: `vision(image, prompt) -> str`, `complete(prompt) -> str`, `embed(text) -> list[float]`. Three implementations: `ollama.py` (default, local, base URL from config), `openai.py` (used if `AI_PROVIDER=openai` and a key is set), and `nim.py` (used if `AI_PROVIDER=nim` and a key is set — NVIDIA NIM microservices, OpenAI-compatible protocol, self-hosted or `build.nvidia.com`). All model names come from config, never hard-coded. Vision and categorize prompts must instruct the model to return **only** valid JSON; parse defensively (strip code fences, validate against a Pydantic schema, retry once on parse failure).
 
 ---
 
@@ -240,7 +240,7 @@ Async, staged, driven off the job queue. Each stage updates the item and emits a
 
 - **No user table, no login UI.** All items belong to the implicit single owner.
 - **Auth = one static bearer token** (`APP_TOKEN` in `.env`), required on every `/api/*` write and on the SSE stream. This exists so the ingest endpoint isn't wide open on the LAN — not for multi-tenancy.
-- **One set of API keys** (`GITHUB_TOKEN`, `TMDB_API_KEY`, optional `OPENAI_API_KEY`) in `.env`.
+- **One set of API keys** (`GITHUB_TOKEN`, `TMDB_API_KEY`, optional `OPENAI_API_KEY` / `NIM_API_KEY`) in `.env`.
 - **Seams left for multi-user (do not build):** add `owner_id` to `items`/`categories`, per-user keys, and real auth later. Note them in code comments; implement nothing.
 
 ---
