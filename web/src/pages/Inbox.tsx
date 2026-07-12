@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, Item } from "../lib/api";
 import { subscribeEvents } from "../lib/sse";
+import { subscribeCounts } from "../lib/offlineQueue";
 import ItemCard from "../components/ItemCard";
 
 // Inbox: the capture surface. Paste a URL/text, drag-drop or paste an image, and
@@ -23,7 +24,7 @@ export default function Inbox() {
   useEffect(() => {
     refresh();
     // Live updates: re-fetch the changed item and splice it in (or prepend if new).
-    return subscribeEvents(async (ev) => {
+    const unsubscribeEvents = subscribeEvents(async (ev) => {
       try {
         const it = await api.getItem(ev.item_id);
         setItems((prev) => {
@@ -37,6 +38,13 @@ export default function Inbox() {
         refresh();
       }
     });
+    // Re-list on every queue change: picks up newly-queued offline placeholders
+    // immediately, and replaces them with the real synced item once replayed.
+    const unsubscribeQueue = subscribeCounts(refresh);
+    return () => {
+      unsubscribeEvents();
+      unsubscribeQueue();
+    };
   }, []);
 
   async function submitText() {

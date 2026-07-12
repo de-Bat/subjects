@@ -46,6 +46,15 @@ The capture surface and your recent items.
   clipboard (e.g. a screenshot) → it uploads and runs the vision + OCR path.
 - New captures appear instantly as `pending` and update in place as they enrich.
 
+**Offline mode.** If the app can't reach the server (nav pill shows "Offline"),
+captures, approvals/rejections, category edits, and settings changes all still
+work — they're queued in the browser and replayed automatically once the
+connection comes back. Click the nav pill to see what's pending, broken down
+by type, and to trigger a manual retry. Anything the server rejects as stale
+on replay (e.g. approving an item already deleted elsewhere) is dropped
+silently with a one-line note in that same panel — everything else stays
+queued until it succeeds.
+
 ### Item — the detail view
 
 Click any card. Shows the thumbnail/screenshot, title, canonical URL, description,
