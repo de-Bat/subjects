@@ -73,9 +73,7 @@ export async function replay(): Promise<void> {
       const entry = all[0];
       const exec = executors[entry.type];
       if (!exec) {
-        await queueDelete(entry.id);
-        notifyCountsChanged();
-        continue;
+        return;
       }
       let response: Response;
       try {
