@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Send to Subjects",
+  "version": "1.0.0",
+  "description": "Capture the current tab (URL, selection, optional screenshot) into your self-hosted Subjects app.",
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Send to Subjects" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "icons": { "128": "icon-128.png" }
+}
