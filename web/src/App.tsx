@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
+import { startPolling } from "./lib/connectivity";
+import SyncStatusPill from "./components/SyncStatusPill";
 import Inbox from "./pages/Inbox";
 import ItemPage from "./pages/Item";
 import CategoryPage from "./pages/Category";
@@ -15,6 +18,10 @@ const tabs = [
 ];
 
 export default function App() {
+  useEffect(() => {
+    startPolling();
+  }, []);
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
@@ -34,6 +41,7 @@ export default function App() {
               {t.label}
             </NavLink>
           ))}
+          <SyncStatusPill />
         </nav>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">
