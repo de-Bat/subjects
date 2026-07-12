@@ -34,11 +34,16 @@ function isNetworkError(e: unknown): e is TypeError {
   return false;
 }
 
-async function cachedGet<T>(path: string, doFetch: () => Promise<Response>): Promise<T> {
+async function cachedGet<T>(
+  path: string,
+  doFetch: () => Promise<Response>,
+  onFetched?: (data: T) => Promise<void>,
+): Promise<T> {
   const key = url(path);
   try {
     const data = await handle<T>(await doFetch());
     await cacheSet(key, data);
+    if (onFetched) await onFetched(data);
     return data;
   } catch (e) {
     if (isNetworkError(e)) {
@@ -163,7 +168,11 @@ export const api = {
   async listItems(params: Record<string, string> = {}): Promise<Item[]> {
     const q = new URLSearchParams(params).toString();
     const path = `/api/items${q ? "?" + q : ""}`;
-    return cachedGet<Item[]>(path, () => fetch(url(path)));
+    return cachedGet<Item[]>(path, () => fetch(url(path)), async (items) => {
+      for (const item of items) {
+        await cacheSet(url(`/api/items/${item.id}`), item);
+      }
+    });
   },
   async getItem(id: string): Promise<Item> {
     const path = `/api/items/${id}`;
@@ -287,8 +296,8 @@ export const api = {
       );
     } catch (e) {
       if (!isNetworkError(e)) throw e;
-      await enqueue("category_create", { name, parent_id });
-      const category: Category = { id: `local:${Date.now()}`, name, parent_id };
+      const queueId = await enqueue("category_create", { name, parent_id });
+      const category: Category = { id: `local:${queueId}`, name, parent_id };
       await patchCachedCategories((cats) => [...cats, category]);
       return category;
     }

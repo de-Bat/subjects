@@ -57,4 +57,17 @@ describe("api offline fallback", () => {
     const result = await api.ingestJSON({ url: "https://example.com" });
     expect(result.id).toMatch(/^local:/);
   });
+
+  it("getItem() falls back to a detail entry backfilled from listItems(), even though getItem was never called directly before", async () => {
+    const listed = new Response(
+      JSON.stringify([{ id: "42", title: "From list" }]),
+      { status: 200 },
+    );
+    const fetchMock = vi.fn().mockResolvedValueOnce(listed).mockRejectedValueOnce(new TypeError("down"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listItems(); // primes /api/items and should backfill /api/items/42
+    const item = await api.getItem("42"); // network fails -> cache fallback
+    expect(item.title).toBe("From list");
+  });
 });
