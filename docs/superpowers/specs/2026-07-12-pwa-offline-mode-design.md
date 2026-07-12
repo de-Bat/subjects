@@ -154,8 +154,13 @@ rendering) is verified manually: Chrome DevTools "Offline" throttle, capture
 a URL, approve/reject an item, flip back online, confirm the pill count
 drains and the placeholder resolves into the real card.
 
-**Edge cases in scope:** stale-cache indicator when a GET falls back to
-cached data; queue surviving a page reload (IndexedDB persists, unlike
-in-memory state). **Explicitly not handled:** duplicate-capture guarding —
-server-side dedup (embedding similarity, already implemented) covers it once
-a queued capture actually lands.
+**Edge cases in scope:** queue surviving a page reload (IndexedDB persists,
+unlike in-memory state); item detail pages stay openable offline for any
+item that appeared in a previously-cached list (the list cache backfills
+each item's individual detail-cache entry, not just the list itself).
+**Explicitly not handled:** duplicate-capture guarding — server-side dedup
+(embedding similarity, already implemented) covers it once a queued capture
+actually lands. **Dropped during implementation:** a separate per-screen
+"stale data" indicator — the nav-bar online/offline pill already tells you
+when you're looking at cached data (if it says "Offline", everything on
+screen is cache-fallback), so a second indicator would be redundant.
