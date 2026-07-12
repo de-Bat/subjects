@@ -1,21 +1,6 @@
 // Thin API client. Base URL + token from localStorage (single-user).
-
-const TOKEN_KEY = "subjects_token";
-const BASE_KEY = "subjects_api_base";
-
-export function getToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-export function setToken(t: string) {
-  localStorage.setItem(TOKEN_KEY, t);
-}
-export function getApiBase(): string {
-  // Empty => same origin (dev proxy / docker web reverse-proxy).
-  return localStorage.getItem(BASE_KEY) || "";
-}
-export function setApiBase(b: string) {
-  localStorage.setItem(BASE_KEY, b.replace(/\/$/, ""));
-}
+export { getToken, setToken, getApiBase, setApiBase } from "./config";
+import { getApiBase, getToken } from "./config";
 
 function url(path: string): string {
   return `${getApiBase()}${path}`;
