@@ -24,6 +24,8 @@ Built per [`CAPTURE_APP_FABLE5_SPEC.md`](CAPTURE_APP_FABLE5_SPEC.md).
 
 ```
 web/         React 18 + TS + Vite PWA (Tailwind). Inbox, Item, Categories, Review, Search, Settings.
+             Works offline: cached reads + a local mutation queue (IndexedDB) replay
+             automatically on reconnect — see "Using it" below.
 extension/   MV3 browser extension — "Send to Subjects" toolbar button + right-click menu.
 api/         FastAPI + Uvicorn (async SQLAlchemy / asyncpg, Pydantic v2).
              ├─ POST /api/ingest        single ingestion endpoint (stub + enqueue, 201 fast)
@@ -95,6 +97,11 @@ Change models later without a redeploy in **Settings** (persisted in the DB).
   silently mis-filed. Approve or reject.
 - **Search** — full-text (Meilisearch, with a SQL fallback) or semantic
   (pgvector embeddings).
+- **Offline** — the nav pill shows Online/Offline/Syncing/Paused. Lose the
+  connection and every capture, approve/reject, category edit, and settings
+  change still works — queued locally and replayed once you're back online.
+  Click the pill for a breakdown of what's pending, by type, plus a manual
+  retry.
 
 ---
 
@@ -179,6 +186,7 @@ uvicorn app.main:app --reload
 
 # Web
 cd web && npm install && npm run dev
+npm test        # vitest — offline-mode lib modules (cache, queue, connectivity)
 ```
 
 ## Notes / v1 non-goals

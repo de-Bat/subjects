@@ -120,6 +120,11 @@ You should see:
 Try a movie screenshot (drag-drop or paste an image) or an article URL to see the
 generic + typed resolvers in action.
 
+Check the nav pill (top right) — it shows Online/Offline/Syncing. Lose the
+connection and the app keeps working: captures, approvals, category edits,
+and settings changes all queue locally and replay once you're back online.
+See [USER_MANUAL.md](USER_MANUAL.md#inbox--capture--live-feed) for details.
+
 ---
 
 ## Troubleshooting quick hits

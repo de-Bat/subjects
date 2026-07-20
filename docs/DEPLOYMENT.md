@@ -198,6 +198,11 @@ and hit **Reprocess** — or re-capture.
   without the reverse proxy + TLS above.
 - Set real values for `APP_TOKEN` and `MEILI_MASTER_KEY` before any non-local
   deployment. The defaults are placeholders.
+- **Offline queue lives in browser IndexedDB, unencrypted.** If you edit
+  server settings (e.g. paste a new `OPENAI_API_KEY`/`NIM_API_KEY`) while the
+  web app is offline, that value sits queued in plaintext on the device until
+  it reconnects and replays. Fine on a personal device; avoid queuing key
+  changes on a shared/public one.
 
 ---
 
@@ -213,3 +218,5 @@ and hit **Reprocess** — or re-capture.
 | Search empty | Meilisearch down/indexing → SQL fallback active. `docker compose logs meilisearch`; check `MEILI_URL`/`MEILI_MASTER_KEY`. |
 | Embeddings/dedup/semantic off | `EMBED_MODEL` not pulled, or `EMBED_DIM` mismatch with the model. |
 | PWA won't install on phone | Needs HTTPS off `localhost`. Add the reverse proxy + TLS. |
+| Nav pill stuck "Offline" while server is up | Health-ping polls `GET /api/health` every ~12s — a slow/blocked path there (custom proxy, firewall) keeps the client thinking it's offline. Confirm `curl <api-base>/api/health` succeeds from the client's network. |
+| Nav pill shows "Sync paused" | A queued mutation replayed with `401` — the token changed or expired since it was queued. Re-enter the token in Settings; queued work resumes automatically. |
