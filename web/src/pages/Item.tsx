@@ -3,12 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, Item, mediaUrl } from "../lib/api";
 import { subscribeEvents } from "../lib/sse";
 import StatusBadge from "../components/StatusBadge";
+import ProcessingProgress from "../components/ProcessingProgress";
+import Provenance from "../components/Provenance";
+import { readProvenance, visibleAttrs } from "../lib/provenance";
 
 export default function ItemPage() {
   const { id } = useParams();
   const nav = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [stage, setStage] = useState<string | undefined>(undefined);
 
   async function load() {
     if (!id) return;
@@ -22,7 +26,10 @@ export default function ItemPage() {
   useEffect(() => {
     load();
     return subscribeEvents((ev) => {
-      if (ev.item_id === id) load();
+      if (ev.item_id === id) {
+        if (ev.stage) setStage(ev.stage);
+        load();
+      }
     });
   }, [id]);
 
@@ -30,7 +37,7 @@ export default function ItemPage() {
   if (!item) return <p className="text-slate-500">Loading…</p>;
 
   const thumb = mediaUrl(item);
-  const attrs = Object.entries(item.attributes || {});
+  const attrs = visibleAttrs(item.attributes || {});
   const links = Object.entries(item.links || {});
 
   async function act(fn: () => Promise<unknown>, back = false) {
@@ -41,6 +48,7 @@ export default function ItemPage() {
 
   return (
     <div>
+      <ProcessingProgress status={item.status} stage={stage} />
       <div className="mb-3 flex items-center gap-2">
         <Link to="/" className="text-sm text-slate-400 hover:text-white">
           ← Inbox
@@ -106,6 +114,8 @@ export default function ItemPage() {
           ))}
         </dl>
       )}
+
+      <Provenance steps={readProvenance(item.attributes || {})} />
 
       {links.length > 0 && (
         <div className="mt-4">

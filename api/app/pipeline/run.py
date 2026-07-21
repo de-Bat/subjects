@@ -9,10 +9,12 @@ from sqlalchemy import text
 
 from ..config import get_settings
 from ..db import get_session_factory, notify_item_event
+from ..models.schemas import Provenance
 from ..services import runtime_settings
 from . import categorize as categorize_stage
 from . import dedup as dedup_stage
 from . import enrich as persist
+from . import provenance as prov_desc
 from .extract import extract
 from .resolve import resolve_and_enrich
 
@@ -36,15 +38,36 @@ async def run_pipeline(item_id: str) -> None:
             return
         source = row[0] or {}
 
+    prov = Provenance()
     try:
         # 1-2. classify + extract
         signals = await extract(source)
+        s, d = prov_desc.describe_vision(signals)
+        prov.add("vision", s, d)
+        prov.add("classify", f"Classified input as {signals.input_type}")
         async with factory() as session:
+            await _emit(session, item_id, "classify")
             await _emit(session, item_id, "extract")
             await session.commit()
 
         # 3-4. resolve + enrich
+        from ..resolvers import registry
+        resolver = registry.pick(signals)
+        score = 0.0
+        try:
+            score = resolver.detect(signals)
+        except Exception:
+            pass
+        rs, rd = prov_desc.describe_resolve(resolver.id, score)
+        prov.add("resolve", rs, rd)
+        async with factory() as session:
+            await _emit(session, item_id, "resolve")
+            await session.commit()
+
         resolver_id, enriched = await resolve_and_enrich(signals)
+        es, ed = prov_desc.describe_enrich(enriched)
+        prov.add("enrich", es, ed)
+        prov.add("why", prov_desc.describe_why(enriched))
         async with factory() as session:
             await persist.apply_enriched(session, item_id, resolver_id, enriched)
             await _emit(session, item_id, "enrich", "enriched")
@@ -56,6 +79,7 @@ async def run_pipeline(item_id: str) -> None:
             await persist.set_categories(session, item_id, cat.categories)
             await persist.set_tags(session, item_id, cat.tags)
             await _emit(session, item_id, "categorize")
+            prov.add("categorize", "Filed into: " + (", ".join(cat.categories) or "Inbox"))
             await session.commit()
 
         # 6. dedup
@@ -73,7 +97,9 @@ async def run_pipeline(item_id: str) -> None:
                     ),
                     {"dup": duplicate_of, "id": item_id},
                 )
+                prov.add("dedup", "Duplicate of an existing item", detail=str(duplicate_of))
                 await _emit(session, item_id, "dedup", "duplicate")
+                await persist.persist_provenance(session, item_id, prov)
                 await session.commit()
 
         if duplicate_of:
@@ -85,11 +111,14 @@ async def run_pipeline(item_id: str) -> None:
             "confidence_auto", get_settings().confidence_auto
         )
         final_status = "enriched" if (enriched.confidence or 0) >= threshold else "needs_review"
+        fs, fd = prov_desc.describe_finalize(final_status, enriched.confidence or 0.0, threshold)
+        prov.add("finalize", fs, fd)
         async with factory() as session:
             await session.execute(
                 text("UPDATE items SET status=:s, updated_at=now() WHERE id=:id"),
                 {"s": final_status, "id": item_id},
             )
+            await persist.persist_provenance(session, item_id, prov)
             await _emit(session, item_id, "finalize", final_status)
             await session.commit()
 
@@ -106,6 +135,8 @@ async def run_pipeline(item_id: str) -> None:
                 ),
                 {"e": str(exc)[:500], "id": item_id},
             )
+            prov.add("error", "Pipeline failed", detail=str(exc)[:200])
+            await persist.persist_provenance(session, item_id, prov)
             await _emit(session, item_id, "error", "failed")
             await session.commit()
 

@@ -86,6 +86,7 @@ class VisionResult(BaseModel):
     visible_url: str | None = None
     title_guess: str | None = None
     ocr_text: str = ""
+    reasoning: str = ""
     candidate_entities: list[CandidateEntity] = Field(default_factory=list)
 
 
@@ -132,8 +133,24 @@ class RepoGuess(BaseModel):
 class MoviePick(BaseModel):
     tmdb_id: int | None = None
     confidence: float = 0.0
+    media_type: Literal["movie", "tv"] | None = None
 
 
 class CategorizeResult(BaseModel):
     categories: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+
+
+class ProvStep(BaseModel):
+    """One user-facing step in the 'how I got there' trace."""
+    stage: str
+    summary: str
+    detail: str | None = None
+
+
+class Provenance(BaseModel):
+    """Accumulates ProvSteps across a pipeline run; persisted to attributes._provenance."""
+    steps: list[ProvStep] = Field(default_factory=list)
+
+    def add(self, stage: str, summary: str, detail: str | None = None) -> None:
+        self.steps.append(ProvStep(stage=stage, summary=summary, detail=detail))

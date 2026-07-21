@@ -71,6 +71,16 @@ async def set_categories(session, item_id: str, category_names: list[str]) -> No
             )
 
 
+async def persist_provenance(session, item_id: str, prov) -> None:
+    await session.execute(
+        text(
+            "UPDATE items SET attributes = attributes || "
+            "jsonb_build_object('_provenance', CAST(:p AS jsonb)), updated_at=now() WHERE id=:id"
+        ),
+        {"p": _json(prov.model_dump()["steps"]), "id": item_id},
+    )
+
+
 def _json(obj) -> str:
     import json
 
