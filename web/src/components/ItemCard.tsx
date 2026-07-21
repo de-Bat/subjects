@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { Item, mediaUrl } from "../lib/api";
 import StatusBadge from "./StatusBadge";
+import ProcessingProgress from "./ProcessingProgress";
 
-export default function ItemCard({ item }: { item: Item }) {
+export default function ItemCard({ item, stage }: { item: Item; stage?: string }) {
   const thumb = mediaUrl(item);
   return (
     <Link
@@ -46,6 +47,7 @@ export default function ItemCard({ item }: { item: Item }) {
           ))}
           {item.confidence != null && <span>· {(item.confidence * 100).toFixed(0)}%</span>}
         </div>
+        <ProcessingProgress status={item.status} stage={stage} compact />
       </div>
     </Link>
   );

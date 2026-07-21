@@ -8,6 +8,7 @@ import ItemCard from "../components/ItemCard";
 // watch items update live via SSE as the pipeline enriches them.
 export default function Inbox() {
   const [items, setItems] = useState<Item[]>([]);
+  const [stages, setStages] = useState<Record<string, string>>({});
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -25,6 +26,7 @@ export default function Inbox() {
     refresh();
     // Live updates: re-fetch the changed item and splice it in (or prepend if new).
     const unsubscribeEvents = subscribeEvents(async (ev) => {
+      if (ev.stage) setStages((prev) => ({ ...prev, [ev.item_id]: ev.stage! }));
       try {
         const it = await api.getItem(ev.item_id);
         setItems((prev) => {
@@ -135,7 +137,7 @@ export default function Inbox() {
       <div className="space-y-2">
         {items.length === 0 && <p className="py-12 text-center text-sm text-slate-500">Inbox empty. Capture something.</p>}
         {items.map((it) => (
-          <ItemCard key={it.id} item={it} />
+          <ItemCard key={it.id} item={it} stage={stages[it.id]} />
         ))}
       </div>
     </div>
