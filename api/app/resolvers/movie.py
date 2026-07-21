@@ -182,7 +182,7 @@ class MovieResolver(Resolver):
         for media_type in ("movie", "tv"):
             params = {"api_key": api_key, "query": title}
             if year:
-                params["year"] = year
+                params["first_air_date_year" if media_type == "tv" else "year"] = year
             resp = await client.get(f"{TMDB}/search/{media_type}", params=params)
             for c in (resp.json().get("results") or [])[:5]:
                 date = c.get("release_date") or c.get("first_air_date") or ""
