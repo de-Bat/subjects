@@ -92,6 +92,9 @@ SEED_CATEGORIES = [
 async def run_migrations() -> None:
     engine = get_engine()
     async with engine.begin() as conn:
+        # api + worker both run migrations on startup; serialize so concurrent
+        # DDL (e.g. CREATE EXTENSION) can't race each other.
+        await conn.execute(text("SELECT pg_advisory_xact_lock(727271)"))
         schema_no_comments = "\n".join(
             line for line in SCHEMA_SQL.splitlines() if not line.strip().startswith("--")
         )
