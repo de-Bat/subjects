@@ -1,29 +1,40 @@
 """Production prompts (spec Appendix B). All demand ONLY minified JSON."""
 
 VISION_SYSTEM = (
-    "You extract structured signals from a shared image (usually a screenshot of a web page). "
+    "You extract structured signals from a shared image (usually a screenshot of a web page "
+    "or social post). "
     'Return ONLY minified JSON of the form: '
     '{"detected_service":<enum>,"visible_url":<string|null>,"title_guess":<string|null>,'
-    '"ocr_text":<string>,"candidate_entities":[{"type":<string>,"value":<string>}]} '
-    'detected_service must be one of ["github","imdb","movie","youtube","twitter","product",'
-    '"recipe","article","generic"]. '
-    "Base detected_service on logos, the address bar, and layout - not only on text. "
-    'If you cannot tell, use "generic" and leave candidate_entities empty. '
-    "Never output prose, markdown, or explanations.\n\n"
+    '"ocr_text":<string>,"reasoning":<string>,'
+    '"candidate_entities":[{"type":<string>,"value":<string>}]} '
+    'detected_service must be one of ["github","imdb","movie","youtube","twitter","instagram",'
+    '"tiktok","product","recipe","article","generic"]. '
+    "Detect the container service (instagram, tiktok, imdb...) from logos/URL/layout AND the "
+    "subject independently: a movie or TV show promo posted on Instagram is still ABOUT that "
+    "movie/show. "
+    "Entity types you may emit: repo, movie, media_title, person, character, provider, studio, "
+    "year, imdb_id, url, product, other. Use 'media_title' for a film/series title, 'person' for "
+    "an actor/creator, and 'provider' for a streaming service (e.g. 'Apple TV+', 'Netflix'). "
+    "reasoning is one short sentence describing what you see. "
+    'If you cannot tell the service, use "generic". Never output prose, markdown, or explanations '
+    "outside the JSON.\n\n"
     "Example 1 - the github.com/facebook/react repository page:\n"
     '{"detected_service":"github","visible_url":"github.com/facebook/react",'
     '"title_guess":"facebook/react","ocr_text":"facebook/react  Public  The library for web and '
-    'native user interfaces  230k stars  48k forks  JavaScript MIT license",'
+    'native user interfaces  230k stars","reasoning":"GitHub repo page for facebook/react",'
     '"candidate_entities":[{"type":"repo","value":"facebook/react"}]}\n'
     "Example 2 - the IMDb page for Dune: Part Two:\n"
     '{"detected_service":"imdb","visible_url":"imdb.com/title/tt15239678",'
-    '"title_guess":"Dune: Part Two","ocr_text":"Dune: Part Two  2024  PG-13  2h 46m  8.5/10  '
-    'Sci-Fi Adventure  Directed by Denis Villeneuve",'
+    '"title_guess":"Dune: Part Two","ocr_text":"Dune: Part Two  2024  PG-13  8.5/10",'
+    '"reasoning":"IMDb title page for the film Dune: Part Two",'
     '"candidate_entities":[{"type":"movie","value":"Dune: Part Two"},'
     '{"type":"year","value":"2024"},{"type":"imdb_id","value":"tt15239678"}]}\n'
-    "Example 3 - a photo of a mountain trail with no text:\n"
-    '{"detected_service":"generic","visible_url":null,"title_guess":null,"ocr_text":"",'
-    '"candidate_entities":[]}'
+    "Example 3 - an Instagram reel from Apple TV showing Annette Bening in a series:\n"
+    '{"detected_service":"instagram","visible_url":null,"title_guess":"Priscilla",'
+    '"ocr_text":"ANNETTE BENING PRISCILLA  Apple TV  Annette Bening is in her villain era",'
+    '"reasoning":"Instagram reel promoting the Apple TV+ series Priscilla",'
+    '"candidate_entities":[{"type":"media_title","value":"Priscilla"},'
+    '{"type":"person","value":"Annette Bening"},{"type":"provider","value":"Apple TV+"}]}'
 )
 
 VISION_USER = "Extract the signals from this image. Return only the JSON object."
@@ -73,8 +84,8 @@ TEXT_SIGNALS_SYSTEM = (
     "You extract lightweight signals from a shared text snippet. Return ONLY minified JSON: "
     '{"detected_service":<enum>,"visible_url":<string|null>,"title_guess":<string|null>,'
     '"ocr_text":<string>,"candidate_entities":[{"type":<string>,"value":<string>}]} '
-    'detected_service must be one of ["github","imdb","movie","youtube","twitter","product",'
-    '"recipe","article","generic"]. Put the original text in ocr_text. '
-    'Entity types: repo, movie, year, imdb_id, url, product, person, other. '
+    'detected_service must be one of ["github","imdb","movie","youtube","twitter","instagram",'
+    '"tiktok","product","recipe","article","generic"]. Put the original text in ocr_text. '
+    'Entity types: repo, movie, year, imdb_id, url, product, person, media_title, provider, studio, character, other. '
     'If unsure, use "generic" and an empty candidate_entities. Never output prose.'
 )
