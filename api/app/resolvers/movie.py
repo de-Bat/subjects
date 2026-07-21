@@ -115,7 +115,7 @@ def build_media_item(details: dict, media_type: str, pick_confidence: float) -> 
             "homepage": details.get("homepage") or None,
         },
         tags=tags,
-        category_hints=["Movies"],
+        category_hints=["TV Shows"] if is_tv else ["Movies"],
         confidence=min(0.97, max(pick_confidence, 0.5) * 0.97),
     )
 

@@ -67,3 +67,17 @@ def test_build_movie_item_uses_movie_keys_and_path():
     assert item.canonical_url == "https://www.themoviedb.org/movie/693134"
     assert item.attributes.get("apple_original") is False
     assert item.links["imdb"] == "https://www.imdb.com/title/tt15239678/"
+
+
+def test_tv_show_filed_under_tv_shows():
+    details = {"id": 1, "name": "Priscilla", "first_air_date": "2026-01-01",
+               "episode_run_time": [42], "overview": "A series."}
+    item = build_media_item(details, "tv", 0.9)
+    assert item.type == "show"
+    assert item.category_hints == ["TV Shows"]
+
+
+def test_movie_stays_under_movies():
+    details = {"id": 2, "title": "Dune", "release_date": "2021-01-01", "overview": "A film."}
+    item = build_media_item(details, "movie", 0.9)
+    assert item.category_hints == ["Movies"]

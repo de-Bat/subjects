@@ -88,11 +88,11 @@ CATEGORIZE_SYSTEM = (
     "singular). Do not invent categories.\n\n"
     'Example input: {"item":{"type":"github","title":"facebook/react","description":"The library '
     'for web and native user interfaces","attributes":{"stars":230000,"language":"JavaScript"}},'
-    '"tree":["Development","Links","Movies","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
+    '"tree":["Development","Links","Movies","TV Shows","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
     '{"categories":["Development","Links"],"tags":["react","javascript","ui","frontend","library"]}\n'
     'Example input: {"item":{"type":"movie","title":"Dune: Part Two","description":"Paul Atreides '
     'unites with the Fremen...","attributes":{"rating":8.5,"genres":["Sci-Fi","Adventure"]}},'
-    '"tree":["Development","Links","Movies","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
+    '"tree":["Development","Links","Movies","TV Shows","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
     '{"categories":["Movies"],"tags":["sci-fi","adventure","denis-villeneuve","2024"]}'
 )
 
