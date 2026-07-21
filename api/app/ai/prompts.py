@@ -50,18 +50,20 @@ GITHUB_DISAMBIGUATE_SYSTEM = (
 )
 
 MOVIE_PICK_SYSTEM = (
-    "You are matching a shared item to the correct movie. You are given extracted context and a "
-    'list of TMDb candidates. Return ONLY {"tmdb_id":<int|null>,"confidence":<0..1>}. '
-    "Prefer an exact title + release-year match. If no candidate is a confident match, return "
+    "You are matching a shared item to the correct movie OR TV show. You are given extracted "
+    "context and a list of TMDb candidates, each tagged with media_type ('movie' or 'tv'). "
+    'Return ONLY {"tmdb_id":<int|null>,"media_type":<"movie"|"tv"|null>,"confidence":<0..1>}. '
+    "Prefer an exact title + release-year match; a TV show and a movie can share a title, so use "
+    "the media_type of the candidate you pick. If no candidate is a confident match, return "
     "null and a low confidence.\n\n"
-    'Example input: {"context":{"title_guess":"Dune: Part Two","year":"2024"},'
-    '"candidates":[{"id":693134,"title":"Dune: Part Two","release_year":2024},'
-    '{"id":438631,"title":"Dune","release_year":2021}]} -> '
-    '{"tmdb_id":693134,"confidence":0.98}\n'
+    'Example input: {"context":{"title_guess":"Priscilla","year":"2026"},'
+    '"candidates":[{"id":220000,"media_type":"tv","title":"Priscilla","release_year":2026},'
+    '{"id":842675,"media_type":"movie","title":"Priscilla","release_year":2023}]} -> '
+    '{"tmdb_id":220000,"media_type":"tv","confidence":0.96}\n'
     'Example input: {"context":{"title_guess":"Dune","year":null},'
-    '"candidates":[{"id":438631,"title":"Dune","release_year":2021},'
-    '{"id":841,"title":"Dune","release_year":1984}]} -> '
-    '{"tmdb_id":null,"confidence":0.4}'
+    '"candidates":[{"id":438631,"media_type":"movie","title":"Dune","release_year":2021},'
+    '{"id":841,"media_type":"movie","title":"Dune","release_year":1984}]} -> '
+    '{"tmdb_id":null,"media_type":null,"confidence":0.4}'
 )
 
 CATEGORIZE_SYSTEM = (

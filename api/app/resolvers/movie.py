@@ -46,6 +46,80 @@ def title_year_from_signals(signals: Signals) -> tuple[str | None, str | None]:
     return title, year
 
 
+def _slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def build_media_item(details: dict, media_type: str, pick_confidence: float) -> EnrichedItem:
+    """Pure: turn a TMDb movie|tv detail payload into an EnrichedItem. No network."""
+    is_tv = media_type == "tv"
+    tmdb_id = details.get("id")
+    title = details.get("title") or details.get("name")
+    date = details.get("release_date") or details.get("first_air_date") or ""
+    year = date[:4] or None
+    runtime = details.get("runtime")
+    if runtime is None:
+        ert = details.get("episode_run_time") or []
+        runtime = ert[0] if ert else None
+
+    cast = [c.get("name") for c in (details.get("credits") or {}).get("cast", [])[:8] if c.get("name")]
+
+    us = (((details.get("watch/providers") or {}).get("results") or {}).get("US") or {})
+    providers = [p.get("provider_name") for p in (us.get("flatrate") or []) if p.get("provider_name")]
+    apple_original = any("apple tv" in p.lower() for p in providers)
+    networks = [n.get("name") for n in (details.get("networks") or []) if n.get("name")]
+
+    trailer = next(
+        (f"https://www.youtube.com/watch?v={v['key']}"
+         for v in (details.get("videos", {}).get("results") or [])
+         if v.get("site") == "YouTube" and v.get("type") == "Trailer"),
+        None,
+    )
+    imdb_id = (details.get("external_ids") or {}).get("imdb_id") or details.get("imdb_id")
+    poster = details.get("poster_path")
+    path = "tv" if is_tv else "movie"
+
+    attributes = {
+        "type": "show" if is_tv else "movie",
+        "rating": details.get("vote_average"),
+        "votes": details.get("vote_count"),
+        "runtime": runtime,
+        "year": year,
+        "tmdb_id": tmdb_id,
+        "cast": cast,
+        "provider": providers,
+        "apple_original": apple_original,
+    }
+    if is_tv:
+        attributes["network"] = networks
+
+    tags = [g["name"].lower() for g in (details.get("genres") or [])]
+    tags += [f"actor:{_slug(n)}" for n in cast]
+    tags += [f"provider:{_slug(p)}" for p in providers]
+    if apple_original:
+        tags.append("apple-original")
+    if year:
+        tags.append(year)
+
+    return EnrichedItem(
+        type="show" if is_tv else "movie",
+        title=title,
+        description=details.get("overview"),
+        canonical_url=f"https://www.themoviedb.org/{path}/{tmdb_id}",
+        thumbnail_url=f"{IMG}/w500{poster}" if poster else None,
+        icon_url=f"{IMG}/w92{poster}" if poster else None,
+        attributes=attributes,
+        links={
+            "trailer": trailer,
+            "imdb": f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else None,
+            "homepage": details.get("homepage") or None,
+        },
+        tags=tags,
+        category_hints=["Movies"],
+        confidence=min(0.97, max(pick_confidence, 0.5) * 0.97),
+    )
+
+
 class MovieResolver(Resolver):
     id = "movie"
     item_type = "movie"
@@ -75,86 +149,63 @@ class MovieResolver(Resolver):
                                 attributes={"error": "TMDB_API_KEY not configured"})
 
         async with httpx.AsyncClient(timeout=20.0) as client:
-            tmdb_id, pick_confidence = await self._identify(client, api_key, signals)
+            tmdb_id, media_type, pick_confidence = await self._identify(client, api_key, signals)
             if tmdb_id is None:
                 title, _ = title_year_from_signals(signals)
                 return EnrichedItem(type="movie", title=title, confidence=min(pick_confidence, 0.4))
 
             details = (await client.get(
-                f"{TMDB}/movie/{tmdb_id}",
-                params={"api_key": api_key, "append_to_response": "videos,external_ids"},
+                f"{TMDB}/{media_type}/{tmdb_id}",
+                params={"api_key": api_key,
+                        "append_to_response": "videos,external_ids,credits,watch/providers"},
             )).json()
 
-        trailer = next(
-            (f"https://www.youtube.com/watch?v={v['key']}"
-             for v in (details.get("videos", {}).get("results") or [])
-             if v.get("site") == "YouTube" and v.get("type") == "Trailer"),
-            None,
-        )
-        imdb_id = (details.get("external_ids") or {}).get("imdb_id") or details.get("imdb_id")
-        year = (details.get("release_date") or "")[:4]
+        return build_media_item(details, media_type, pick_confidence)
 
-        return EnrichedItem(
-            type="movie",
-            title=details.get("title"),
-            description=details.get("overview"),
-            canonical_url=f"https://www.themoviedb.org/movie/{tmdb_id}",
-            thumbnail_url=f"{IMG}/w500{details['poster_path']}" if details.get("poster_path") else None,
-            icon_url=f"{IMG}/w92{details['poster_path']}" if details.get("poster_path") else None,
-            attributes={
-                "rating": details.get("vote_average"),
-                "votes": details.get("vote_count"),
-                "runtime": details.get("runtime"),
-                "release_date": details.get("release_date"),
-                "year": year or None,
-                "tmdb_id": tmdb_id,
-            },
-            links={
-                "trailer": trailer,
-                "imdb": f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else None,
-                "homepage": details.get("homepage") or None,
-            },
-            tags=[g["name"].lower() for g in (details.get("genres") or [])] + ([year] if year else []),
-            category_hints=self.category_hints,
-            confidence=min(0.97, max(pick_confidence, 0.5) * 0.97),
-        )
-
-    async def _identify(self, client: httpx.AsyncClient, api_key: str, signals: Signals) -> tuple[int | None, float]:
-        """Return (tmdb_id, confidence). Direct IMDb-id lookup when unambiguous, else search + LLM pick."""
+    async def _identify(self, client, api_key, signals):
+        """Return (tmdb_id, media_type, confidence)."""
         if imdb_id := imdb_id_from_signals(signals):
             resp = await client.get(
                 f"{TMDB}/find/{imdb_id}", params={"api_key": api_key, "external_source": "imdb_id"}
             )
-            results = resp.json().get("movie_results") or []
-            if results:
-                return results[0]["id"], 0.98
+            data = resp.json()
+            if data.get("movie_results"):
+                return data["movie_results"][0]["id"], "movie", 0.98
+            if data.get("tv_results"):
+                return data["tv_results"][0]["id"], "tv", 0.98
 
         title, year = title_year_from_signals(signals)
         if not title:
-            return None, 0.0
-        params = {"api_key": api_key, "query": title}
-        if year:
-            params["year"] = year
-        resp = await client.get(f"{TMDB}/search/movie", params=params)
-        candidates = (resp.json().get("results") or [])[:5]
-        if not candidates:
-            return None, 0.0
+            return None, "movie", 0.0
 
-        # Wrong-movie/wrong-year errors are prevented here (Appendix B.3).
+        candidates = []
+        for media_type in ("movie", "tv"):
+            params = {"api_key": api_key, "query": title}
+            if year:
+                params["year"] = year
+            resp = await client.get(f"{TMDB}/search/{media_type}", params=params)
+            for c in (resp.json().get("results") or [])[:5]:
+                date = c.get("release_date") or c.get("first_air_date") or ""
+                candidates.append({
+                    "id": c["id"], "media_type": media_type,
+                    "title": c.get("title") or c.get("name"),
+                    "release_year": int(date[:4]) if date[:4].isdigit() else None,
+                })
+        if not candidates:
+            return None, "movie", 0.0
+
         payload = {
             "context": {"title_guess": title, "year": year,
                         "ocr_text": (signals.vision.ocr_text[:1000] if signals.vision else None)},
-            "candidates": [
-                {"id": c["id"], "title": c.get("title"),
-                 "release_year": int(c["release_date"][:4]) if c.get("release_date") else None}
-                for c in candidates
-            ],
+            "candidates": candidates,
         }
         pick = await complete_json(
             get_provider(), MoviePick, json.dumps(payload), system=prompts.MOVIE_PICK_SYSTEM
         )
         if not pick or pick.tmdb_id is None:
-            return None, pick.confidence if pick else 0.0
-        if pick.tmdb_id not in {c["id"] for c in candidates}:
-            return None, 0.2  # hallucinated id -> review
-        return pick.tmdb_id, pick.confidence
+            return None, "movie", pick.confidence if pick else 0.0
+        media_type = pick.media_type or "movie"
+        valid_ids = {c["id"] for c in candidates if c["media_type"] == media_type}
+        if pick.tmdb_id not in valid_ids:
+            return None, media_type, 0.2
+        return pick.tmdb_id, media_type, pick.confidence
