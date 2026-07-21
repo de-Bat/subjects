@@ -5,7 +5,31 @@ import { subscribeEvents } from "../lib/sse";
 import StatusBadge from "../components/StatusBadge";
 import ProcessingProgress from "../components/ProcessingProgress";
 import Provenance from "../components/Provenance";
-import { readProvenance, visibleAttrs } from "../lib/provenance";
+import { readProvenance } from "../lib/provenance";
+import { attrRows, linkKeyLabel, linkLabel } from "../lib/attrs";
+
+function IconBox({ url, seed }: { url?: string | null; seed: string }) {
+  if (url) return <img src={url} alt="" className="mt-1 h-10 w-10 shrink-0 rounded object-cover" />;
+  const ch = (seed.trim()[0] || "?").toUpperCase();
+  return (
+    <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-700 text-lg font-semibold text-slate-200">
+      {ch}
+    </div>
+  );
+}
+
+function LinkPill({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center rounded-full border border-indigo-700/60 bg-indigo-900/30 px-3 py-1 text-xs font-medium text-indigo-300 hover:bg-indigo-900/60"
+    >
+      {label} ↗
+    </a>
+  );
+}
 
 export default function ItemPage() {
   const { id } = useParams();
@@ -37,8 +61,8 @@ export default function ItemPage() {
   if (!item) return <p className="text-slate-500">Loading…</p>;
 
   const thumb = mediaUrl(item);
-  const attrs = visibleAttrs(item.attributes || {});
-  const links = Object.entries(item.links || {});
+  const rows = attrRows(item.attributes || {});
+  const links = Object.entries(item.links || {}).filter(([, v]) => !!v) as [string, string][];
 
   async function act(fn: () => Promise<unknown>, back = false) {
     await fn();
@@ -65,19 +89,15 @@ export default function ItemPage() {
       )}
 
       <div className="flex items-start gap-3">
-        {item.icon_url && <img src={item.icon_url} alt="" className="mt-1 h-8 w-8 rounded" />}
+        <IconBox url={item.icon_url} seed={item.title || item.type} />
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">{item.title || "Untitled"}</h1>
-          {item.canonical_url && (
-            <a
-              href={item.canonical_url}
-              target="_blank"
-              rel="noreferrer"
-              className="break-all text-sm text-indigo-400 hover:underline"
-            >
-              {item.canonical_url}
-            </a>
-          )}
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {item.canonical_url && <LinkPill href={item.canonical_url} label={linkLabel(item.canonical_url)} />}
+            {links.map(([k, v]) => (
+              <LinkPill key={k} href={v} label={linkKeyLabel(k)} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -102,13 +122,23 @@ export default function ItemPage() {
         </div>
       )}
 
-      {attrs.length > 0 && (
-        <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-sm">
-          {attrs.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-slate-500">{k}</dt>
+      {rows.length > 0 && (
+        <dl className="mt-4 grid grid-cols-[auto,1fr] items-baseline gap-x-4 gap-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-sm">
+          {rows.map((r) => (
+            <div key={r.key} className="contents">
+              <dt className="text-slate-500">{r.label}</dt>
               <dd className="min-w-0 break-words text-slate-300">
-                {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                {r.kind === "chips" ? (
+                  <span className="flex flex-wrap gap-1.5">
+                    {r.chips!.map((c) => (
+                      <span key={c} className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
+                        {c}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  r.text
+                )}
               </dd>
             </div>
           ))}
@@ -116,21 +146,6 @@ export default function ItemPage() {
       )}
 
       <Provenance steps={readProvenance(item.attributes || {})} />
-
-      {links.length > 0 && (
-        <div className="mt-4">
-          <h2 className="mb-1 text-sm font-medium text-slate-400">Links</h2>
-          <ul className="space-y-1 text-sm">
-            {links.map(([k, v]) => (
-              <li key={k}>
-                <a href={v} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">
-                  {k}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {item.status === "needs_review" && (
