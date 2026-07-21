@@ -4,6 +4,8 @@ import { api, Item, mediaUrl } from "../lib/api";
 import { subscribeEvents } from "../lib/sse";
 import StatusBadge from "../components/StatusBadge";
 import ProcessingProgress from "../components/ProcessingProgress";
+import Provenance from "../components/Provenance";
+import { readProvenance, visibleAttrs } from "../lib/provenance";
 
 export default function ItemPage() {
   const { id } = useParams();
@@ -35,7 +37,7 @@ export default function ItemPage() {
   if (!item) return <p className="text-slate-500">Loading…</p>;
 
   const thumb = mediaUrl(item);
-  const attrs = Object.entries(item.attributes || {});
+  const attrs = visibleAttrs(item.attributes || {});
   const links = Object.entries(item.links || {});
 
   async function act(fn: () => Promise<unknown>, back = false) {
@@ -112,6 +114,8 @@ export default function ItemPage() {
           ))}
         </dl>
       )}
+
+      <Provenance steps={readProvenance(item.attributes || {})} />
 
       {links.length > 0 && (
         <div className="mt-4">
