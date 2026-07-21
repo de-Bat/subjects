@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # NVIDIA NIM (self-hosted or build.nvidia.com — OpenAI-compatible protocol)
     nim_api_key: str = ""
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
-    nim_vision_model: str = "meta/llama-3.2-90b-vision-instruct"
+    nim_vision_model: str = "meta/llama-3.2-11b-vision-instruct"
     nim_text_model: str = "meta/llama-3.1-70b-instruct"
     nim_embed_model: str = "nvidia/nv-embedqa-e5-v5"
 
