@@ -6,7 +6,8 @@ from .base import Resolver
 from .generic import GenericResolver
 
 SOCIAL_HOSTS = re.compile(
-    r"(twitter\.com|x\.com|mastodon\.\w+|bsky\.app|threads\.net|linkedin\.com)", re.I
+    r"(twitter\.com|x\.com|mastodon\.\w+|bsky\.app|threads\.net|linkedin\.com|"
+    r"instagram\.com|tiktok\.com)", re.I
 )
 
 
@@ -20,7 +21,7 @@ class SocialResolver(Resolver):
                           signals.vision.visible_url if signals.vision else None):
             if candidate and SOCIAL_HOSTS.search(candidate):
                 return 0.85
-        if signals.vision and signals.vision.detected_service == "twitter":
+        if signals.vision and signals.vision.detected_service in ("twitter", "instagram", "tiktok"):
             return 0.7
         return 0.0
 
