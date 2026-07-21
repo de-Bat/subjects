@@ -15,6 +15,10 @@ OWNER_REPO_RE = re.compile(r"\b([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))/([A-Za-z0-9_.
 RESERVED_OWNERS = {"features", "topics", "orgs", "sponsors", "settings", "marketplace", "search"}
 
 
+def github_icon(data: dict, owner: str) -> str:
+    return (data.get("owner") or {}).get("avatar_url") or f"https://github.com/{owner}.png"
+
+
 def repo_from_signals(signals: Signals) -> tuple[str, str] | None:
     """Unambiguous owner/repo from URL or VLM-visible URL; None if it needs the LLM."""
     for candidate in (signals.canonical_url, signals.url,
@@ -80,8 +84,8 @@ class GitHubResolver(Resolver):
             title=data["full_name"],
             description=data.get("description"),
             canonical_url=data["html_url"],
-            icon_url=(data.get("owner") or {}).get("avatar_url"),
-            thumbnail_url=(data.get("owner") or {}).get("avatar_url"),
+            icon_url=github_icon(data, owner),
+            thumbnail_url=github_icon(data, owner),
             attributes={
                 "stars": data.get("stargazers_count"),
                 "forks": data.get("forks_count"),
