@@ -78,11 +78,20 @@ class CategoryPatch(BaseModel):
 class CandidateEntity(BaseModel):
     type: str
     value: str
+    role: Literal["subject", "collateral"] = "subject"
+
+
+class PrimarySubject(BaseModel):
+    """The one thing the capture is really about (distinct from the container service)."""
+    subject_type: str = "generic"   # show, movie, repo, product, article, paper, recipe, social, youtube, generic
+    title: str | None = None
+    why: str | None = None
 
 
 class VisionResult(BaseModel):
     """Strict-JSON output of the VLM extraction prompt (Appendix B.1)."""
     detected_service: str = "generic"
+    primary_subject: PrimarySubject | None = None
     visible_url: str | None = None
     title_guess: str | None = None
     ocr_text: str = ""
