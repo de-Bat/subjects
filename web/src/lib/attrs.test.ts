@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attrRows, compactNum, formatScalar, humanizeKey, linkKeyLabel, linkLabel } from "./attrs";
+import { attrRows, compactNum, formatScalar, humanizeKey, linkKeyLabel, linkLabel, metaLine } from "./attrs";
 
 describe("compactNum", () => {
   it("abbreviates thousands and millions", () => {
@@ -29,50 +29,33 @@ describe("formatScalar", () => {
   });
 });
 
-describe("attrRows", () => {
-  it("renders arrays as chips and scalars as formatted text, no JSON", () => {
+describe("attrRows key-facts", () => {
+  it("renders only curated facts as labeled chips, hides everything else", () => {
     const rows = attrRows({
-      type: "show",
-      rating: 7.8,
+      type: "show", rating: 7.8, year: "2026", runtime: 42,
       cast: ["Annette Bening", "Someone Else"],
-      provider: ["Apple TV+"],
-      apple_original: true,
-      tmdb_id: 220000,
-      year: "2026",
-      network: [],
-      note: null,
+      provider: ["Apple TV+"], network: ["Apple TV+"], genres: ["Drama"],
+      tmdb_id: 220000, apple_original: true, _enrich_incomplete: "x",
     });
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
 
-    // hidden / empty / internal keys dropped
-    expect(byKey.type).toBeUndefined();
-    expect(byKey.tmdb_id).toBeUndefined();
-    expect(byKey.network).toBeUndefined(); // empty array
-    expect(byKey.note).toBeUndefined(); // null
+    expect(byKey.cast.label).toBe("Cast");
+    expect(byKey.provider.label).toBe("Where to watch");
+    expect(byKey.network.label).toBe("Network");
+    expect(byKey.genres.label).toBe("Genres");
 
-    // arrays -> chips
-    expect(byKey.cast.kind).toBe("chips");
-    expect(byKey.cast.chips).toEqual(["Annette Bening", "Someone Else"]);
-
-    // scalars -> formatted text
-    expect(byKey.rating.kind).toBe("text");
-    expect(byKey.rating.text).toBe("7.8 ★");
-
-    // true boolean shown, no raw JSON anywhere
-    expect(byKey.apple_original.text).toBe("Yes");
-    for (const r of rows) {
-      const s = r.text ?? "";
-      expect(s.includes("{")).toBe(false);
-      expect(s.includes("[")).toBe(false);
+    // meta-line + internal + noise keys never appear as rows
+    for (const k of ["rating", "year", "runtime", "type", "tmdb_id", "apple_original", "_enrich_incomplete"]) {
+      expect(byKey[k]).toBeUndefined();
     }
   });
+});
 
-  it("drops _-prefixed engine metadata and false flags", () => {
-    const rows = attrRows({ _provenance: [{ stage: "x" }], archived: false, language: "Python" });
-    const keys = rows.map((r) => r.key);
-    expect(keys).not.toContain("_provenance");
-    expect(keys).not.toContain("archived");
-    expect(keys).toContain("language");
+describe("metaLine", () => {
+  it("assembles known facts, skipping unknowns", () => {
+    expect(metaLine({ type: "show", attributes: { year: "2026", runtime: 42, rating: 7.8 } }))
+      .toBe("2026 · 42 min · 7.8 ★ · Show");
+    expect(metaLine({ type: "movie", attributes: {} })).toBe("Movie");
   });
 });
 
