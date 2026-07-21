@@ -44,7 +44,6 @@ async def run_pipeline(item_id: str) -> None:
         signals = await extract(source)
         s, d = prov_desc.describe_vision(signals)
         prov.add("vision", s, d)
-        prov.add("classify", f"Classified input as {signals.input_type}")
         async with factory() as session:
             await _emit(session, item_id, "classify")
             await _emit(session, item_id, "extract")
@@ -58,7 +57,9 @@ async def run_pipeline(item_id: str) -> None:
             score = resolver.detect(signals)
         except Exception:
             pass
-        rs, rd = prov_desc.describe_resolve(resolver.id, score)
+        subject_type = (signals.vision.primary_subject.subject_type
+                        if signals.vision and signals.vision.primary_subject else None)
+        rs, rd = prov_desc.describe_resolve(resolver.id, score, subject_type)
         prov.add("resolve", rs, rd)
         async with factory() as session:
             await _emit(session, item_id, "resolve")
