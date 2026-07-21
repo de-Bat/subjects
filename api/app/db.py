@@ -92,7 +92,10 @@ SEED_CATEGORIES = [
 async def run_migrations() -> None:
     engine = get_engine()
     async with engine.begin() as conn:
-        for stmt in [s.strip() for s in SCHEMA_SQL.split(";") if s.strip()]:
+        schema_no_comments = "\n".join(
+            line for line in SCHEMA_SQL.splitlines() if not line.strip().startswith("--")
+        )
+        for stmt in [s.strip() for s in schema_no_comments.split(";") if s.strip()]:
             await conn.execute(text(stmt))
         # Seed taxonomy (editable by user afterwards)
         for name in SEED_CATEGORIES:
