@@ -37,7 +37,7 @@ def title_year_from_signals(signals: Signals) -> tuple[str | None, str | None]:
     year = None
     if signals.vision:
         for ent in signals.vision.candidate_entities:
-            if ent.type == "movie" and not title:
+            if ent.type in ("movie", "media_title") and not title:
                 title = ent.value
             if ent.type == "year" and not year:
                 year = ent.value
@@ -56,6 +56,12 @@ class MovieResolver(Resolver):
             return 0.95
         if signals.vision and signals.vision.detected_service in ("imdb", "movie"):
             return 0.85
+        if signals.vision:
+            types = {e.type for e in signals.vision.candidate_entities}
+            if "media_title" in types and (
+                types & {"person", "actor"} or "provider" in types
+            ):
+                return 0.9
         text = " ".join(filter(None, [signals.text, signals.body_text,
                                       signals.vision.ocr_text if signals.vision else None]))
         if text and len(MOVIE_WORDS.findall(text)) >= 2:
