@@ -68,7 +68,7 @@ async def run_pipeline(item_id: str) -> None:
                 await session.execute(
                     text(
                         "UPDATE items SET status='duplicate', "
-                        "attributes = attributes || jsonb_build_object('duplicate_of', :dup::text), "
+                        "attributes = attributes || jsonb_build_object('duplicate_of', CAST(:dup AS text)), "
                         "updated_at=now() WHERE id=:id"
                     ),
                     {"dup": duplicate_of, "id": item_id},
@@ -101,7 +101,7 @@ async def run_pipeline(item_id: str) -> None:
             await session.execute(
                 text(
                     "UPDATE items SET status='failed', "
-                    "attributes = attributes || jsonb_build_object('error', :e::text), updated_at=now() "
+                    "attributes = attributes || jsonb_build_object('error', CAST(:e AS text)), updated_at=now() "
                     "WHERE id=:id"
                 ),
                 {"e": str(exc)[:500], "id": item_id},
