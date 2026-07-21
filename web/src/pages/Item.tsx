@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, Item, mediaUrl } from "../lib/api";
 import { subscribeEvents } from "../lib/sse";
 import StatusBadge from "../components/StatusBadge";
+import ProcessingProgress from "../components/ProcessingProgress";
 
 export default function ItemPage() {
   const { id } = useParams();
   const nav = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [stage, setStage] = useState<string | undefined>(undefined);
 
   async function load() {
     if (!id) return;
@@ -22,7 +24,10 @@ export default function ItemPage() {
   useEffect(() => {
     load();
     return subscribeEvents((ev) => {
-      if (ev.item_id === id) load();
+      if (ev.item_id === id) {
+        if (ev.stage) setStage(ev.stage);
+        load();
+      }
     });
   }, [id]);
 
@@ -41,6 +46,7 @@ export default function ItemPage() {
 
   return (
     <div>
+      <ProcessingProgress status={item.status} stage={stage} />
       <div className="mb-3 flex items-center gap-2">
         <Link to="/" className="text-sm text-slate-400 hover:text-white">
           ← Inbox
