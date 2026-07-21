@@ -22,9 +22,13 @@ export default function ItemCard({ item }: { item: Item }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
+          {item.icon_url && <img src={item.icon_url} alt="" className="h-4 w-4 shrink-0 rounded-sm" />}
           <span className="truncate font-medium">{item.title || "Untitled"}</span>
           <StatusBadge status={item.status} />
         </div>
+        {item.canonical_url && (
+          <span className="block truncate text-xs text-indigo-400">{item.canonical_url}</span>
+        )}
         {item.description && (
           <p className="mt-0.5 line-clamp-2 text-sm text-slate-400">{item.description}</p>
         )}
@@ -33,6 +37,11 @@ export default function ItemCard({ item }: { item: Item }) {
           {item.categories.map((c) => (
             <span key={c.id} className="rounded bg-indigo-900/40 px-1.5 py-0.5 text-indigo-300">
               {c.name}
+            </span>
+          ))}
+          {item.tags.map((t) => (
+            <span key={t.id} className="rounded bg-slate-800 px-1.5 py-0.5">
+              #{t.name}
             </span>
           ))}
           {item.confidence != null && <span>· {(item.confidence * 100).toFixed(0)}%</span>}
