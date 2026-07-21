@@ -81,3 +81,12 @@ def test_movie_stays_under_movies():
     details = {"id": 2, "title": "Dune", "release_date": "2021-01-01", "overview": "A film."}
     item = build_media_item(details, "movie", 0.9)
     assert item.category_hints == ["Movies"]
+
+
+def test_genres_populate_attributes():
+    details = {
+        "id": 3, "title": "X", "release_date": "2021-01-01", "overview": "A film.",
+        "genres": [{"name": "Drama"}, {"name": "Sci-Fi"}],
+    }
+    item = build_media_item(details, "movie", 0.9)
+    assert item.attributes["genres"] == ["Drama", "Sci-Fi"]

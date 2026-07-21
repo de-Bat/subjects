@@ -27,7 +27,7 @@ def imdb_id_from_signals(signals: Signals) -> str | None:
         if candidate and (m := IMDB_URL_RE.search(candidate)):
             return m.group(1)
     if signals.vision:
-        for ent in signals.vision.candidate_entities:
+        for ent in subject_entities(signals.vision):
             if ent.type == "imdb_id" and ent.value.startswith("tt"):
                 return ent.value
     return None
@@ -68,6 +68,11 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+def _subject_media_type(signals: Signals) -> str:
+    ps = signals.vision.primary_subject if signals.vision else None
+    return "show" if (ps and ps.subject_type == "show") else "movie"
+
+
 def build_media_item(details: dict, media_type: str, pick_confidence: float) -> EnrichedItem:
     """Pure: turn a TMDb movie|tv detail payload into an EnrichedItem. No network."""
     is_tv = media_type == "tv"
@@ -104,6 +109,7 @@ def build_media_item(details: dict, media_type: str, pick_confidence: float) -> 
         "runtime": runtime,
         "year": year,
         "tmdb_id": tmdb_id,
+        "genres": [g.get("name") for g in (details.get("genres") or []) if g.get("name")],
         "cast": cast,
         "provider": providers,
         "apple_original": apple_original,
@@ -163,20 +169,24 @@ class MovieResolver(Resolver):
     async def enrich(self, signals: Signals) -> EnrichedItem:
         api_key = get_settings().tmdb_api_key
         if not api_key:
+            subject_type = _subject_media_type(signals)
             return EnrichedItem(
-                type="movie", title=_subject_title(signals),
+                type=subject_type, title=_subject_title(signals),
                 description=_subject_description(signals),
                 attributes={"_enrich_incomplete": "No TMDb API key configured"},
+                category_hints=["TV Shows"] if subject_type == "show" else ["Movies"],
                 confidence=0.2,
             )
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             tmdb_id, media_type, pick_confidence = await self._identify(client, api_key, signals)
             if tmdb_id is None:
+                subject_type = _subject_media_type(signals)
                 return EnrichedItem(
-                    type="movie", title=_subject_title(signals),
+                    type=subject_type, title=_subject_title(signals),
                     description=_subject_description(signals),
                     attributes={"_enrich_incomplete": "No confident match on TMDb"},
+                    category_hints=["TV Shows"] if subject_type == "show" else ["Movies"],
                     confidence=min(pick_confidence, 0.3),
                 )
 
