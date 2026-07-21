@@ -1,4 +1,4 @@
-from app.models.schemas import CandidateEntity, Signals, VisionResult
+from app.models.schemas import CandidateEntity, PrimarySubject, Signals, VisionResult
 from app.resolvers import registry
 from app.resolvers.social import SocialResolver
 
@@ -25,3 +25,16 @@ def test_plain_social_post_stays_social():
     vision = VisionResult(detected_service="instagram", ocr_text="just a selfie")
     sig = Signals(input_type="image", canonical_url="https://www.instagram.com/p/xyz/", vision=vision)
     assert registry.pick(sig).id == "social"
+
+
+def test_subject_type_routes_over_higher_container_score():
+    # Weak movie signals (would lose to social on raw detect), but the subject is a film.
+    vision = VisionResult(
+        detected_service="instagram",
+        primary_subject=PrimarySubject(subject_type="movie", title="Priscilla"),
+        candidate_entities=[CandidateEntity(type="media_title", value="Priscilla")],
+        ocr_text="film directed by someone",
+    )
+    sig = Signals(input_type="image",
+                  canonical_url="https://www.instagram.com/reel/abc/", vision=vision)
+    assert registry.pick(sig).id == "movie"

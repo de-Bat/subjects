@@ -84,7 +84,7 @@ CREATE INDEX IF NOT EXISTS items_canonical_idx ON items (canonical_url);
 """
 
 SEED_CATEGORIES = [
-    "Development", "Links", "Movies", "Articles", "Products",
+    "Development", "Links", "Movies", "TV Shows", "Articles", "Products",
     "Recipes", "Papers", "Social", "Inbox",
 ]
 

@@ -8,9 +8,6 @@ const KEY_LABELS: Record<string, string> = {
   apple_original: "Apple Original",
 };
 
-// Keys not worth showing in the attribute grid (internal ids / duplicated elsewhere).
-const HIDDEN_KEYS = new Set(["tmdb_id", "type"]);
-
 // Numeric keys that read better abbreviated (1200 -> 1.2k).
 const COMPACT_KEYS = new Set(["votes", "stars", "forks"]);
 
@@ -45,34 +42,42 @@ export interface AttrRow {
   text?: string;
 }
 
-// Turn the attributes bag into rows the panel can render without any JSON.
-// Drops engine metadata (`_`-prefixed), hidden/internal keys, empty values,
-// and `false` boolean flags.
+// Only these attributes render as key-facts rows, in this order, with these labels.
+const KEY_FACTS: { key: string; label: string }[] = [
+  { key: "cast", label: "Cast" },
+  { key: "provider", label: "Where to watch" },
+  { key: "network", label: "Network" },
+  { key: "genres", label: "Genres" },
+];
+
+// Curated projection of the attributes bag: only allow-listed key-facts render,
+// so the panel never dumps arbitrary/internal attributes or raw JSON.
 export function attrRows(attributes: Record<string, unknown>): AttrRow[] {
   const rows: AttrRow[] = [];
-  for (const [key, v] of Object.entries(attributes || {})) {
-    if (key.startsWith("_") || HIDDEN_KEYS.has(key)) continue;
-    if (v === null || v === undefined || v === "") continue;
-
+  for (const { key, label } of KEY_FACTS) {
+    const v = attributes?.[key];
     if (Array.isArray(v)) {
       const chips = v.filter((x) => x != null && x !== "").map(String);
-      if (chips.length === 0) continue;
-      rows.push({ key, label: humanizeKey(key), kind: "chips", chips });
-    } else if (typeof v === "boolean") {
-      if (!v) continue; // hide false flags entirely
-      rows.push({ key, label: humanizeKey(key), kind: "text", text: "Yes" });
-    } else if (typeof v === "object") {
-      // Nested object: flatten to "k: v, k: v" rather than dumping braces.
-      const text = Object.entries(v as Record<string, unknown>)
-        .map(([kk, vv]) => `${kk}: ${vv}`)
-        .join(", ");
-      if (!text) continue;
-      rows.push({ key, label: humanizeKey(key), kind: "text", text });
-    } else {
-      rows.push({ key, label: humanizeKey(key), kind: "text", text: formatScalar(key, v) });
+      if (chips.length) rows.push({ key, label, kind: "chips", chips });
+    } else if (v != null && v !== "") {
+      rows.push({ key, label, kind: "text", text: formatScalar(key, v) });
     }
   }
   return rows;
+}
+
+const TYPE_LABEL: Record<string, string> = { show: "Show", movie: "Movie" };
+
+// One muted line under the title: year · runtime · rating · type. Skips unknowns.
+export function metaLine(item: { type: string; attributes: Record<string, unknown> }): string {
+  const a = item.attributes || {};
+  const parts: string[] = [];
+  if (a.year) parts.push(String(a.year));
+  if (typeof a.runtime === "number") parts.push(`${a.runtime} min`);
+  if (typeof a.rating === "number") parts.push(`${a.rating.toFixed(1)} ★`);
+  const t = TYPE_LABEL[item.type] || humanizeKey(item.type);
+  if (t) parts.push(t);
+  return parts.join(" · ");
 }
 
 // Label for a canonical URL, derived from its host.

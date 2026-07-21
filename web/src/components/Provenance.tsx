@@ -16,7 +16,14 @@ export default function Provenance({ steps }: { steps: ProvStep[] }) {
                 {s.stage}
               </span>
               <span className="text-slate-300">{s.summary}</span>
-              {s.detail && <div className="text-xs text-slate-500">{s.detail}</div>}
+              {s.detail && (
+                <details className="mt-0.5">
+                  <summary className="cursor-pointer text-[11px] text-slate-600">
+                    Technical details
+                  </summary>
+                  <div className="text-xs text-slate-500">{s.detail}</div>
+                </details>
+              )}
             </div>
           </li>
         ))}

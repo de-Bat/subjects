@@ -8,6 +8,7 @@ from ..ai import prompts
 from ..ai.provider import complete_json, get_provider
 from ..config import get_settings
 from ..models.schemas import EnrichedItem, MoviePick, Signals
+from ..pipeline.subject import subject_entities
 from .base import Resolver
 
 IMDB_URL_RE = re.compile(r"imdb\.com/title/(tt\d+)")
@@ -26,7 +27,7 @@ def imdb_id_from_signals(signals: Signals) -> str | None:
         if candidate and (m := IMDB_URL_RE.search(candidate)):
             return m.group(1)
     if signals.vision:
-        for ent in signals.vision.candidate_entities:
+        for ent in subject_entities(signals.vision):
             if ent.type == "imdb_id" and ent.value.startswith("tt"):
                 return ent.value
     return None
@@ -36,7 +37,7 @@ def title_year_from_signals(signals: Signals) -> tuple[str | None, str | None]:
     title = None
     year = None
     if signals.vision:
-        for ent in signals.vision.candidate_entities:
+        for ent in subject_entities(signals.vision):
             if ent.type in ("movie", "media_title") and not title:
                 title = ent.value
             if ent.type == "year" and not year:
@@ -46,8 +47,30 @@ def title_year_from_signals(signals: Signals) -> tuple[str | None, str | None]:
     return title, year
 
 
+def _subject_title(signals: Signals) -> str | None:
+    """Best-known subject title without a TMDb hit: primary subject, then vision, then source."""
+    if signals.vision and signals.vision.primary_subject and signals.vision.primary_subject.title:
+        return signals.vision.primary_subject.title
+    title, _ = title_year_from_signals(signals)
+    return title
+
+
+def _subject_description(signals: Signals) -> str | None:
+    ps = signals.vision.primary_subject if signals.vision else None
+    if ps and ps.why:
+        return ps.why
+    if signals.vision and signals.vision.ocr_text:
+        return signals.vision.ocr_text[:280].strip() or None
+    return None
+
+
 def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def _subject_media_type(signals: Signals) -> str:
+    ps = signals.vision.primary_subject if signals.vision else None
+    return "show" if (ps and ps.subject_type == "show") else "movie"
 
 
 def build_media_item(details: dict, media_type: str, pick_confidence: float) -> EnrichedItem:
@@ -86,6 +109,7 @@ def build_media_item(details: dict, media_type: str, pick_confidence: float) -> 
         "runtime": runtime,
         "year": year,
         "tmdb_id": tmdb_id,
+        "genres": [g.get("name") for g in (details.get("genres") or []) if g.get("name")],
         "cast": cast,
         "provider": providers,
         "apple_original": apple_original,
@@ -115,7 +139,7 @@ def build_media_item(details: dict, media_type: str, pick_confidence: float) -> 
             "homepage": details.get("homepage") or None,
         },
         tags=tags,
-        category_hints=["Movies"],
+        category_hints=["TV Shows"] if is_tv else ["Movies"],
         confidence=min(0.97, max(pick_confidence, 0.5) * 0.97),
     )
 
@@ -145,14 +169,26 @@ class MovieResolver(Resolver):
     async def enrich(self, signals: Signals) -> EnrichedItem:
         api_key = get_settings().tmdb_api_key
         if not api_key:
-            return EnrichedItem(type="movie", title=signals.title, confidence=0.2,
-                                attributes={"error": "TMDB_API_KEY not configured"})
+            subject_type = _subject_media_type(signals)
+            return EnrichedItem(
+                type=subject_type, title=_subject_title(signals),
+                description=_subject_description(signals),
+                attributes={"_enrich_incomplete": "No TMDb API key configured"},
+                category_hints=["TV Shows"] if subject_type == "show" else ["Movies"],
+                confidence=0.2,
+            )
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             tmdb_id, media_type, pick_confidence = await self._identify(client, api_key, signals)
             if tmdb_id is None:
-                title, _ = title_year_from_signals(signals)
-                return EnrichedItem(type="movie", title=title, confidence=min(pick_confidence, 0.4))
+                subject_type = _subject_media_type(signals)
+                return EnrichedItem(
+                    type=subject_type, title=_subject_title(signals),
+                    description=_subject_description(signals),
+                    attributes={"_enrich_incomplete": "No confident match on TMDb"},
+                    category_hints=["TV Shows"] if subject_type == "show" else ["Movies"],
+                    confidence=min(pick_confidence, 0.3),
+                )
 
             details = (await client.get(
                 f"{TMDB}/{media_type}/{tmdb_id}",

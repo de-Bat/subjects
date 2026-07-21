@@ -6,7 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 import ProcessingProgress from "../components/ProcessingProgress";
 import Provenance from "../components/Provenance";
 import { readProvenance } from "../lib/provenance";
-import { attrRows, linkKeyLabel, linkLabel } from "../lib/attrs";
+import { attrRows, linkKeyLabel, linkLabel, metaLine } from "../lib/attrs";
 
 function IconBox({ url, seed }: { url?: string | null; seed: string }) {
   if (url) return <img src={url} alt="" className="mt-1 h-10 w-10 shrink-0 rounded object-cover" />;
@@ -63,6 +63,8 @@ export default function ItemPage() {
   const thumb = mediaUrl(item);
   const rows = attrRows(item.attributes || {});
   const links = Object.entries(item.links || {}).filter(([, v]) => !!v) as [string, string][];
+  const meta = metaLine(item);
+  const incomplete = (item.attributes as Record<string, unknown>)?._enrich_incomplete as string | undefined;
 
   async function act(fn: () => Promise<unknown>, back = false) {
     await fn();
@@ -92,6 +94,7 @@ export default function ItemPage() {
         <IconBox url={item.icon_url} seed={item.title || item.type} />
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">{item.title || "Untitled"}</h1>
+          {meta && <div className="mt-0.5 text-sm text-slate-500">{meta}</div>}
           <div className="mt-1.5 flex flex-wrap gap-2">
             {item.canonical_url && <LinkPill href={item.canonical_url} label={linkLabel(item.canonical_url)} />}
             {links.map(([k, v]) => (
@@ -100,6 +103,12 @@ export default function ItemPage() {
           </div>
         </div>
       </div>
+
+      {incomplete && (
+        <div className="mt-3 rounded-lg border border-amber-700/50 bg-amber-900/20 p-3 text-sm text-amber-300">
+          Couldn't fetch full details — {incomplete}.
+        </div>
+      )}
 
       {item.description && <p className="mt-3 whitespace-pre-wrap text-slate-300">{item.description}</p>}
 

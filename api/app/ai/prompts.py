@@ -4,37 +4,51 @@ VISION_SYSTEM = (
     "You extract structured signals from a shared image (usually a screenshot of a web page "
     "or social post). "
     'Return ONLY minified JSON of the form: '
-    '{"detected_service":<enum>,"visible_url":<string|null>,"title_guess":<string|null>,'
+    '{"detected_service":<enum>,"primary_subject":{"subject_type":<enum>,"title":<string|null>,'
+    '"why":<string>},"visible_url":<string|null>,"title_guess":<string|null>,'
     '"ocr_text":<string>,"reasoning":<string>,'
-    '"candidate_entities":[{"type":<string>,"value":<string>}]} '
-    'detected_service must be one of ["github","imdb","movie","youtube","twitter","instagram",'
-    '"tiktok","product","recipe","article","generic"]. '
-    "Detect the container service (instagram, tiktok, imdb...) from logos/URL/layout AND the "
-    "subject independently: a movie or TV show promo posted on Instagram is still ABOUT that "
-    "movie/show. "
+    '"candidate_entities":[{"type":<string>,"value":<string>,"role":<"subject"|"collateral">}]} '
+    'detected_service is the CONTAINER the item appeared in, one of ["github","imdb","movie",'
+    '"youtube","twitter","instagram","tiktok","product","recipe","article","generic"]. '
+    'primary_subject is what the capture is REALLY about, independent of the container: a movie '
+    "or TV show promo posted on Instagram is still ABOUT that movie/show. "
+    'primary_subject.subject_type is one of ["show","movie","repo","product","article","paper",'
+    '"recipe","social","youtube","generic"] ("show" for a TV series, "movie" for a film). '
+    "why is one short sentence saying why that is the subject. "
+    "Every entity MUST carry a role: 'subject' if it is part of the real subject, 'collateral' "
+    "for anything incidental - sponsored/ad blocks, app navigation or UI chrome, watermarks, and "
+    "caption text unrelated to the subject. "
     "Entity types you may emit: repo, movie, media_title, person, character, provider, studio, "
     "year, imdb_id, url, product, other. Use 'media_title' for a film/series title, 'person' for "
     "an actor/creator, and 'provider' for a streaming service (e.g. 'Apple TV+', 'Netflix'). "
     "reasoning is one short sentence describing what you see. "
-    'If you cannot tell the service, use "generic". Never output prose, markdown, or explanations '
-    "outside the JSON.\n\n"
+    'If you cannot tell the container, use "generic". Never output prose, markdown, or '
+    "explanations outside the JSON.\n\n"
     "Example 1 - the github.com/facebook/react repository page:\n"
-    '{"detected_service":"github","visible_url":"github.com/facebook/react",'
+    '{"detected_service":"github","primary_subject":{"subject_type":"repo","title":"facebook/react",'
+    '"why":"The page is the react repository"},"visible_url":"github.com/facebook/react",'
     '"title_guess":"facebook/react","ocr_text":"facebook/react  Public  The library for web and '
     'native user interfaces  230k stars","reasoning":"GitHub repo page for facebook/react",'
-    '"candidate_entities":[{"type":"repo","value":"facebook/react"}]}\n'
+    '"candidate_entities":[{"type":"repo","value":"facebook/react","role":"subject"}]}\n'
     "Example 2 - the IMDb page for Dune: Part Two:\n"
-    '{"detected_service":"imdb","visible_url":"imdb.com/title/tt15239678",'
+    '{"detected_service":"imdb","primary_subject":{"subject_type":"movie","title":"Dune: Part Two",'
+    '"why":"IMDb title page for the film"},"visible_url":"imdb.com/title/tt15239678",'
     '"title_guess":"Dune: Part Two","ocr_text":"Dune: Part Two  2024  PG-13  8.5/10",'
     '"reasoning":"IMDb title page for the film Dune: Part Two",'
-    '"candidate_entities":[{"type":"movie","value":"Dune: Part Two"},'
-    '{"type":"year","value":"2024"},{"type":"imdb_id","value":"tt15239678"}]}\n'
-    "Example 3 - an Instagram reel from Apple TV showing Annette Bening in a series:\n"
-    '{"detected_service":"instagram","visible_url":null,"title_guess":"Priscilla",'
-    '"ocr_text":"ANNETTE BENING PRISCILLA  Apple TV  Annette Bening is in her villain era",'
-    '"reasoning":"Instagram reel promoting the Apple TV+ series Priscilla",'
-    '"candidate_entities":[{"type":"media_title","value":"Priscilla"},'
-    '{"type":"person","value":"Annette Bening"},{"type":"provider","value":"Apple TV+"}]}'
+    '"candidate_entities":[{"type":"movie","value":"Dune: Part Two","role":"subject"},'
+    '{"type":"year","value":"2024","role":"subject"},'
+    '{"type":"imdb_id","value":"tt15239678","role":"subject"}]}\n'
+    "Example 3 - an Instagram reel promoting the Apple TV+ series Priscilla, with a 'Sponsored' "
+    "energy-drink banner and app nav visible:\n"
+    '{"detected_service":"instagram","primary_subject":{"subject_type":"show","title":"Priscilla",'
+    '"why":"The reel promotes the Apple TV+ series Priscilla"},"visible_url":null,'
+    '"title_guess":"Priscilla","ocr_text":"ANNETTE BENING PRISCILLA  Apple TV  Sponsored: '
+    'ZapEnergy  Home Search Reels","reasoning":"Instagram reel promoting the Apple TV+ series '
+    'Priscilla",'
+    '"candidate_entities":[{"type":"media_title","value":"Priscilla","role":"subject"},'
+    '{"type":"person","value":"Annette Bening","role":"subject"},'
+    '{"type":"provider","value":"Apple TV+","role":"subject"},'
+    '{"type":"other","value":"ZapEnergy","role":"collateral"}]}'
 )
 
 VISION_USER = "Extract the signals from this image. Return only the JSON object."
@@ -74,20 +88,27 @@ CATEGORIZE_SYSTEM = (
     "singular). Do not invent categories.\n\n"
     'Example input: {"item":{"type":"github","title":"facebook/react","description":"The library '
     'for web and native user interfaces","attributes":{"stars":230000,"language":"JavaScript"}},'
-    '"tree":["Development","Links","Movies","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
+    '"tree":["Development","Links","Movies","TV Shows","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
     '{"categories":["Development","Links"],"tags":["react","javascript","ui","frontend","library"]}\n'
     'Example input: {"item":{"type":"movie","title":"Dune: Part Two","description":"Paul Atreides '
     'unites with the Fremen...","attributes":{"rating":8.5,"genres":["Sci-Fi","Adventure"]}},'
-    '"tree":["Development","Links","Movies","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
+    '"tree":["Development","Links","Movies","TV Shows","Articles","Products","Recipes","Papers","Social","Inbox"]} -> '
     '{"categories":["Movies"],"tags":["sci-fi","adventure","denis-villeneuve","2024"]}'
 )
 
 TEXT_SIGNALS_SYSTEM = (
     "You extract lightweight signals from a shared text snippet. Return ONLY minified JSON: "
-    '{"detected_service":<enum>,"visible_url":<string|null>,"title_guess":<string|null>,'
-    '"ocr_text":<string>,"candidate_entities":[{"type":<string>,"value":<string>}]} '
+    '{"detected_service":<enum>,"primary_subject":{"subject_type":<enum>,"title":<string|null>,'
+    '"why":<string>},"visible_url":<string|null>,"title_guess":<string|null>,'
+    '"ocr_text":<string>,'
+    '"candidate_entities":[{"type":<string>,"value":<string>,"role":<"subject"|"collateral">}]} '
     'detected_service must be one of ["github","imdb","movie","youtube","twitter","instagram",'
-    '"tiktok","product","recipe","article","generic"]. Put the original text in ocr_text. '
-    'Entity types: repo, movie, year, imdb_id, url, product, person, media_title, provider, studio, character, other. '
+    '"tiktok","product","recipe","article","generic"]. '
+    'primary_subject.subject_type is one of ["show","movie","repo","product","article","paper",'
+    '"recipe","social","youtube","generic"] and describes what the text is really about. '
+    'Put the original text in ocr_text. Every entity carries a role: "subject" or "collateral" '
+    "(unrelated asides, promo/ad text). "
+    'Entity types: repo, movie, year, imdb_id, url, product, person, media_title, provider, '
+    'studio, character, other. '
     'If unsure, use "generic" and an empty candidate_entities. Never output prose.'
 )
